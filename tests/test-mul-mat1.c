@@ -13,14 +13,20 @@
 #include <Accelerate/Accelerate.h>
 
 const int M = 1280;
-const int N = 1500;
+const int N = 1536;
 const int K = 1280;
+
+uint64_t get_time_us() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1000000 + tv.tv_usec;
+}
 
 //
 // naive implementation
 //
 
-void mul_mat_vec_f32_0(
+void mul_mat_f32_0(
     const float * restrict src0, // M x K
     const float * restrict src1, // N x K (transposed)
     float * dst,
@@ -36,7 +42,7 @@ void mul_mat_vec_f32_0(
     }
 }
 
-void mul_mat_vec_f16_0(
+void mul_mat_f16_0(
     const __fp16 * src0,
     const __fp16 * src1,
            float * dst,
@@ -102,7 +108,7 @@ void mul_mat_vec_f16_0(
 }
 
 // blocking with block size 32
-void mul_mat_vec_f16_1(
+void mul_mat_f16_1(
     const __fp16 * src0,
     const __fp16 * src1,
            float * dst,
@@ -174,7 +180,7 @@ void mul_mat_vec_f16_1(
 
 }
 
-void mul_mat_vec_f8_0(
+void mul_mat_f8_0(
     const uint8_t * src0,
     const uint8_t * src1,
            float * dst,
@@ -206,16 +212,10 @@ void mul_mat_vec_f8_0(
     }
 }
 
-uint64_t get_time_us() {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return tv.tv_sec * 1000000 + tv.tv_usec;
-}
-
 int main(int argc, const char ** argv) {
-    float * src0 = (float *)malloc(sizeof(float)*M*K);
-    float * src1 = (float *)malloc(sizeof(float)*N*K);
-    float * dst  = (float *)malloc(sizeof(float)*M*N);
+    float * src0 = malloc(sizeof(float)*M*K);
+    float * src1 = malloc(sizeof(float)*N*K);
+    float * dst  = malloc(sizeof(float)*M*N);
 
     for (int i = 0; i < M*K; i++) {
         src0[i] = rand() / (float)RAND_MAX;
@@ -258,7 +258,7 @@ int main(int argc, const char ** argv) {
         method = atoi(argv[1]);
     }
 
-    const int nIter = 10000;
+    const int nIter = 1;
 
     const clock_t start = clock();
     const uint64_t start_us = get_time_us();
@@ -267,24 +267,24 @@ int main(int argc, const char ** argv) {
     double sum = 0.0f;
     for (int i = 0; i < nIter; i++) {
         if (method == 0) {
-            mul_mat_vec_f32_0(src0, src1, dst, M, N, K);
+            mul_mat_f32_0(src0, src1, dst, M, N, K);
         }
 
         if (method == 1) {
-            mul_mat_vec_f16_0(src0_fp16, src1_fp16, dst, M, N, K);
+            mul_mat_f16_0(src0_fp16, src1_fp16, dst, M, N, K);
         }
 
         if (method == 2) {
-            mul_mat_vec_f16_1(src0_fp16, src1_fp16, dst, M, N, K);
+            mul_mat_f16_1(src0_fp16, src1_fp16, dst, M, N, K);
         }
 
         if (method == 3) {
-            mul_mat_vec_f8_0(src0_fp8, src1_fp8, dst, M, N, K);
+            mul_mat_f8_0(src0_fp8, src1_fp8, dst, M, N, K);
         }
 
         if (method == 4) {
             // Use BLAS sgemm from Accelerate framework
-            cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M, K, N, 1.0f, src0, N, src1, N, 0.0f, dst, N);
+            cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, M, N, K, 1.0f, src0, K, src1, K, 0.0f, dst, N);
         }
     }
 

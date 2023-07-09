@@ -211,11 +211,18 @@ make -j4 gpt-j
 
 # Run the inference (requires 16GB of CPU RAM)
 ./bin/gpt-j -m models/gpt-j-6B/ggml-model.bin -p "This is an example"
+
+# Input prompt through pipe and run the inference.
+echo "This is an example" > prompt.txt
+cat prompt.txt | ./bin/gpt-j -m models/gpt-j-6B/ggml-model.bin
 ```
 
 To run the `gpt-j` tool, you need the 12GB `ggml-model.bin` file which contains the GPT-J model in
-[ggml](https://github.com/ggerganov/ggml) compatible format. In the instructions above, I download the binary file
-directly from one of my servers, using the [download-ggml-model.sh](download-ggml-model.sh) script.
+[ggml](https://github.com/ggerganov/ggml) compatible format. In the instructions above, the binary file
+is downloaded from my repository on Hugging Face using the [download-ggml-model.sh](download-ggml-model.sh) script.
+You can also, download the file manually from this link:
+
+https://huggingface.co/ggerganov/ggml/tree/main
 
 ---
 

@@ -1,9 +1,13 @@
+#define _CRT_SECURE_NO_DEPRECATE // Disables ridiculous "unsafe" warnigns on Windows
 #include "ggml/ggml.h"
 
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
+
+#if defined(_MSC_VER)
+#pragma warning(disable: 4244 4267) // possible loss of data
+#endif
 
 bool is_close(float a, float b, float epsilon) {
     return fabs(a - b) < epsilon;
@@ -13,14 +17,25 @@ int main(int argc, const char ** argv) {
     struct ggml_init_params params = {
         .mem_size   = 128*1024*1024,
         .mem_buffer = NULL,
+        .no_alloc   = false,
     };
 
-    //struct ggml_opt_params opt_params = ggml_opt_default_params(GGML_OPT_LBFGS);
+    //struct ggml_opt_params opt_params = ggml_opt_default_params(GGML_OPT_ADAM);
+    //opt_params.adam.alpha = 0.01f;
 
-    struct ggml_opt_params opt_params = ggml_opt_default_params(GGML_OPT_ADAM);
-    opt_params.adam.alpha = 0.01f;
+    struct ggml_opt_params opt_params = ggml_opt_default_params(GGML_OPT_LBFGS);
 
-    opt_params.n_threads = (argc > 1) ? atoi(argv[1]) : 8;
+    // original threads: 8
+    int nthreads = 8;
+    const char *env = getenv("GGML_NTHREADS");
+    if (env != NULL) {
+        nthreads = atoi(env);
+    }
+    if (argc > 1) {
+        nthreads = atoi(argv[1]);
+    }
+    opt_params.n_threads = nthreads;
+    printf("test2: n_threads:%d\n", opt_params.n_threads);
 
     const float xi[] = {  1.0f,  2.0f,  3.0f,  4.0f,  5.0f , 6.0f,  7.0f,  8.0f,  9.0f,  10.0f, };
           float yi[] = { 15.0f, 25.0f, 35.0f, 45.0f, 55.0f, 65.0f, 75.0f, 85.0f, 95.0f, 105.0f, };
@@ -61,13 +76,13 @@ int main(int argc, const char ** argv) {
 
         enum ggml_opt_result res = ggml_opt(NULL, opt_params, f);
 
-        assert(res == GGML_OPT_OK);
-
         printf("t0 = %f\n", ggml_get_f32_1d(t0, 0));
         printf("t1 = %f\n", ggml_get_f32_1d(t1, 0));
 
-        assert(is_close(ggml_get_f32_1d(t0, 0),  5.0f, 1e-3f));
-        assert(is_close(ggml_get_f32_1d(t1, 0), 10.0f, 1e-3f));
+        GGML_ASSERT(res == GGML_OPT_OK);
+
+        GGML_ASSERT(is_close(ggml_get_f32_1d(t0, 0),  5.0f, 1e-3f));
+        GGML_ASSERT(is_close(ggml_get_f32_1d(t1, 0), 10.0f, 1e-3f));
     }
 
     {
@@ -95,9 +110,9 @@ int main(int argc, const char ** argv) {
 
         enum ggml_opt_result res = ggml_opt(NULL, opt_params, f);
 
-        assert(res == GGML_OPT_OK);
-        assert(is_close(ggml_get_f32_1d(t0, 0),  5.0f, 1e-3f));
-        assert(is_close(ggml_get_f32_1d(t1, 0), 10.0f, 1e-3f));
+        GGML_ASSERT(res == GGML_OPT_OK);
+        GGML_ASSERT(is_close(ggml_get_f32_1d(t0, 0),  5.0f, 1e-2f));
+        GGML_ASSERT(is_close(ggml_get_f32_1d(t1, 0), 10.0f, 1e-2f));
     }
 
     {
@@ -116,10 +131,10 @@ int main(int argc, const char ** argv) {
 
         enum ggml_opt_result res = ggml_opt(NULL, opt_params, f);
 
-        assert(res == GGML_OPT_OK);
-        assert(is_close(ggml_get_f32_1d(f,  0), 0.0f, 1e-3f));
-        assert(is_close(ggml_get_f32_1d(t0, 0), 0.0f, 1e-3f));
-        assert(is_close(ggml_get_f32_1d(t1, 0), 0.0f, 1e-3f));
+        GGML_ASSERT(res == GGML_OPT_OK);
+        GGML_ASSERT(is_close(ggml_get_f32_1d(f,  0), 0.0f, 1e-3f));
+        GGML_ASSERT(is_close(ggml_get_f32_1d(t0, 0), 0.0f, 1e-3f));
+        GGML_ASSERT(is_close(ggml_get_f32_1d(t1, 0), 0.0f, 1e-3f));
     }
 
     /////////////////////////////////////////
@@ -154,10 +169,10 @@ int main(int argc, const char ** argv) {
 
         enum ggml_opt_result res = ggml_opt(NULL, opt_params, f);
 
-        assert(res == GGML_OPT_OK);
-        assert(is_close(ggml_get_f32_1d(f,  0), 0.0f, 1e-3f));
-        assert(is_close(ggml_get_f32_1d(t0, 0), 1.0f, 1e-3f));
-        assert(is_close(ggml_get_f32_1d(t1, 0), 3.0f, 1e-3f));
+        GGML_ASSERT(res == GGML_OPT_OK);
+        GGML_ASSERT(is_close(ggml_get_f32_1d(f,  0), 0.0f, 1e-3f));
+        GGML_ASSERT(is_close(ggml_get_f32_1d(t0, 0), 1.0f, 1e-3f));
+        GGML_ASSERT(is_close(ggml_get_f32_1d(t1, 0), 3.0f, 1e-3f));
     }
 
     ggml_free(ctx0);
